@@ -12,13 +12,16 @@ IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 FAILURE_PATTERN = re.compile(
     r"failed password|authentication failure|"
     r"authentication failed|login failed|"
-    r"invalid user|failed publickey",
+    r"failed publickey",
     re.IGNORECASE,
 )
 
+
 def analyze_lines(lines):
+    events = [line.strip() for line in lines if line.strip()]
+
     results = {
-        "total_lines": 0,
+        "total_lines": len(events),
         "failed_attempts": 0,
         "ip_counts": Counter(),
         "alerts": [],
@@ -26,9 +29,7 @@ def analyze_lines(lines):
         "source": "unknown",
     }
 
-    for line in lines:
-        results["total_lines"] += 1
-
+    for line in events:
         if not FAILURE_PATTERN.search(line):
             continue
 
@@ -36,7 +37,12 @@ def analyze_lines(lines):
         match = IP_PATTERN.search(line)
 
         if match:
-            results["ip_counts"][match.group()] += 1
+            ip = match.group()
+
+            # Validar que cada octeto sea válido.
+            octets = ip.split(".")
+            if all(0 <= int(octet) <= 255 for octet in octets):
+                results["ip_counts"][ip] += 1
 
     for ip, count in results["ip_counts"].most_common():
         if count >= FAILED_LOGIN_THRESHOLD:
@@ -78,31 +84,49 @@ def read_journal():
 
     except FileNotFoundError:
         return None, "No se encontró journalctl."
-
     except subprocess.TimeoutExpired:
         return None, "La lectura del diario superó el tiempo límite."
-
     except OSError as error:
         return None, f"No se pudo consultar el diario: {error}"
 
 
-def read_sample():
+def read_sample_for_path(path):
     try:
-        with LOG_FILE.open("r", encoding="utf-8") as file:
+        with Path(path).open("r", encoding="utf-8") as file:
             return file.readlines(), None
     except (OSError, UnicodeError) as error:
-        return None, f"No se pudo leer el archivo de pruebas: {error}"
+        return None, f"No se pudo leer el archivo: {error}"
+
+
+def read_sample():
+    return read_sample_for_path(LOG_FILE)
+
+
+def empty_report(message, source):
+    return {
+        "total_lines": 0,
+        "failed_attempts": 0,
+        "ip_counts": Counter(),
+        "alerts": [],
+        "errors": [message],
+        "source": source,
+    }
 
 
 def analyze_log(log_path=None):
+    # Una ruta explícita significa que se analizan datos de prueba
+    # u otro archivo seleccionado expresamente.
     if log_path is not None:
         lines, error = read_sample_for_path(log_path)
+
         if error:
             return empty_report(error, "sample")
+
         report = analyze_lines(lines)
         report["source"] = "sample"
         return report
 
+    # Primero se intenta consultar el registro del sistema.
     lines, error = read_journal()
 
     if lines is not None:
@@ -110,6 +134,7 @@ def analyze_log(log_path=None):
         report["source"] = "journal"
         return report
 
+    # Si no está disponible, se usa el archivo de prueba.
     sample_lines, sample_error = read_sample()
 
     if sample_lines is not None:
@@ -126,29 +151,10 @@ def analyze_log(log_path=None):
     )
 
 
-def read_sample_for_path(path):
-    try:
-        with Path(path).open("r", encoding="utf-8") as file:
-            return file.readlines(), None
-    except (OSError, UnicodeError) as error:
-        return None, f"No se pudo leer el archivo: {error}"
-
-
-def empty_report(message, source):
-    return {
-        "total_lines": 0,
-        "failed_attempts": 0,
-        "ip_counts": Counter(),
-        "alerts": [],
-        "errors": [message],
-        "source": source,
-    }
-
-
 if __name__ == "__main__":
     report = analyze_log()
 
-    print("=== DARK SENTINEL V1.1 ===")
+    print("=== DARK SENTINEL V1.2 ===")
     print(f"Fuente: {report['source']}")
     print(f"Eventos analizados: {report['total_lines']}")
     print(f"Intentos fallidos detectados: {report['failed_attempts']}")
