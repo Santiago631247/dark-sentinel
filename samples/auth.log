@@ -1,0 +1,6 @@
+Oct 23 10:00:01 server sshd: Failed password for admin from 203.0.113.10 port 50100 ssh2
+Oct 23 10:00:03 server sshd: Failed password for admin from 203.0.113.10 port 50101 ssh2
+Oct 23 10:00:05 server sshd: Failed password for root from 203.0.113.10 port 50102 ssh2
+Oct 23 10:00:07 server sshd: Failed password for test from 203.0.113.10 port 50103 ssh2
+Oct 23 10:00:09 server sshd: Failed password for admin from 203.0.113.10 port 50104 ssh2
+Oct 23 10:01:00 server sshd: Accepted password for user from 192.0.2.20 port 50105 ssh2

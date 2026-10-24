@@ -1,0 +1,25 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.bak
+*.tmp
+
+# Entorno virtual
+.venv/
+venv/
+
+# Variables y secretos
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Herramientas
+.vscode/
+.idea/
+
+# Sistema
+.DS_Store
+Thumbs.db
